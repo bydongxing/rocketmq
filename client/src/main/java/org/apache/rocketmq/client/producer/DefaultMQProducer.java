@@ -332,7 +332,13 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
         // 检查消息的完整性
         Validators.checkMessage(msg, this);
+
         msg.setTopic(withNamespace(msg.getTopic()));
+
+        /**
+         * 发送同步消息，DefaultMQProducer#send(Message) 对 DefaultMQProducerImpl#send(Message) 进行封装
+         *
+         */
         return this.defaultMQProducerImpl.send(msg);
     }
 
