@@ -16,11 +16,12 @@
  */
 package org.apache.rocketmq.common.message;
 
+import org.apache.rocketmq.common.UtilAll;
+
 import java.nio.ByteBuffer;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.apache.rocketmq.common.UtilAll;
 
 public class MessageClientIDSetter {
     private static final String TOPIC_KEY_SPLITTER = "#";
@@ -37,6 +38,7 @@ public class MessageClientIDSetter {
         tempBuffer.putInt(UtilAll.getPid());
         tempBuffer.position(0);
         try {
+            // 获取当前IP：port，转换成16个字符串，之后创建msgId时可以用这个16位作为固定前缀
             tempBuffer.put(UtilAll.getIP());
         } catch (Exception e) {
             tempBuffer.put(createFakeIP());
@@ -99,13 +101,25 @@ public class MessageClientIDSetter {
         return result;
     }
 
+
+    /**
+     *
+     * 创建msgid的策略
+     * @return
+     */
     public static String createUniqID() {
+
+        //32位
         StringBuilder sb = new StringBuilder(LEN * 2);
+
+        // 静态方法，在启动的时候初始化，内容包含 IP:PORT,classloader的hashCode（Pid）
         sb.append(FIX_STRING);
+        // 追加了一个时间差值 和子增值
         sb.append(UtilAll.bytes2string(createUniqIDBuffer()));
         return sb.toString();
     }
 
+    // 6位，前4位表示时间差值，后面2位表示一个自增值
     private static byte[] createUniqIDBuffer() {
         ByteBuffer buffer = ByteBuffer.allocate(4 + 2);
         long current = System.currentTimeMillis();
