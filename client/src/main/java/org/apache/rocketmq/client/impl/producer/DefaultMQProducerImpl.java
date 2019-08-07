@@ -563,7 +563,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             break;
                         }
 
-                        // 调用发送消息核心方法
+                        /**
+                         * 调用发送消息核心方法
+                         */
                         sendResult = this.sendKernelImpl(msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
                         endTimestamp = System.currentTimeMillis();
 
@@ -846,6 +848,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 requestHeader.setUnitMode(this.isUnitMode());
                 requestHeader.setBatch(msg instanceof MessageBatch);
                 // 消息重发Topic
+                /**
+                 *
+                 * 重试队列，默认重试（消费者消费）16次，16次之后进入死信队列，需要人工干预
+                 *
+                 */
                 if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                     String reconsumeTimes = MessageAccessor.getReconsumeTime(msg);
                     if (reconsumeTimes != null) {
@@ -864,6 +871,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 SendResult sendResult = null;
                 switch (communicationMode) {
                     case ASYNC:
+                        // 异步发送
                         Message tmpMessage = msg;
                         boolean messageCloned = false;
                         if (msgBodyCompressed) {
@@ -888,29 +896,31 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
                         }
                         sendResult = this.mQClientFactory.getMQClientAPIImpl().sendMessage(
-                            brokerAddr,
-                            mq.getBrokerName(),
-                            tmpMessage,
+                            brokerAddr,   // broker的地址
+                            mq.getBrokerName(), // broker的名称
+                            tmpMessage,   // 消息体
                             requestHeader,
                             timeout - costTimeAsync,
                             communicationMode,
-                            sendCallback,
+                            sendCallback, // 异步发送的 Callback
                             topicPublishInfo,
                             this.mQClientFactory,
                             this.defaultMQProducer.getRetryTimesWhenSendAsyncFailed(),
                             context,
                             this);
                         break;
+                        // 只管发送，不管结果
                     case ONEWAY:
+                        // 同步发送
                     case SYNC:
                         long costTimeSync = System.currentTimeMillis() - beginStartTime;
                         if (timeout < costTimeSync) {
                             throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
                         }
                         sendResult = this.mQClientFactory.getMQClientAPIImpl().sendMessage(
-                            brokerAddr,
-                            mq.getBrokerName(),
-                            msg,
+                            brokerAddr, // broker的地址
+                            mq.getBrokerName(), // broker的名称
+                            msg, // 消息体
                             requestHeader,
                             timeout - costTimeSync,
                             communicationMode,
@@ -962,6 +972,13 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         return mQClientFactory;
     }
 
+    /**
+     *
+     * 压缩消息
+     *
+     * @param msg
+     * @return
+     */
     private boolean tryToCompressMessage(final Message msg) {
         if (msg instanceof MessageBatch) {
             //batch dose not support compressing right now

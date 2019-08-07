@@ -103,6 +103,9 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
         }
 
         if (!tmpList.isEmpty()) {
+
+            // 打乱 + 排序。
+            // TODO 疑问：应该只能二选一。猜测Collections.shuffle(tmpList)去掉。
             Collections.shuffle(tmpList);
 
             Collections.sort(tmpList);
@@ -159,6 +162,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
 
         /**
          * 比较对象
+         *
          * 可用性 > 延迟 > 开始可用时间
          *
          * @param other other

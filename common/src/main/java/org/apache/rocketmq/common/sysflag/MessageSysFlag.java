@@ -17,6 +17,18 @@
 package org.apache.rocketmq.common.sysflag;
 
 public class MessageSysFlag {
+
+
+    /**
+     * 0x表示此数为16进制表示方法
+     * <p>
+     * 0x1表示为2进制就是0001
+     * <p>
+     * <<是移位操作 表示左移，>>表示右移
+     * <p>
+     * 0x1<<3表示将0x1向左移3位
+     * 即0x1<<3 = 0001<<3 = 1000 = 0x8
+     */
     public final static int COMPRESSED_FLAG = 0x1;
     public final static int MULTI_TAGS_FLAG = 0x1 << 1;
     public final static int TRANSACTION_NOT_TYPE = 0;
