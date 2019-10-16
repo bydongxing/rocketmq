@@ -49,7 +49,8 @@ public class Producer {
         /*
          * 设置nameSrv的地址
          */
-        producer.setNamesrvAddr("127.0.0.1:9876");
+//        producer.setNamesrvAddr("127.0.0.1:9876");
+        producer.setNamesrvAddr("114.67.100.83:9876;114.67.100.82:9876");
 
         /*
          * Launch the instance.

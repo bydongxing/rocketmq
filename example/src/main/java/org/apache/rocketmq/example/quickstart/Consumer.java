@@ -53,7 +53,8 @@ public class Consumer {
         /*
          * 设置nameSrv的地址
          */
-        consumer.setNamesrvAddr("127.0.0.1:9876");
+//        consumer.setNamesrvAddr("127.0.0.1:9876");
+        consumer.setNamesrvAddr("114.67.100.83:9876;114.67.100.82:9876");
 
         /*
          * Specify where to start in case the specified consumer group is a brand new one.

@@ -395,7 +395,14 @@ public class DefaultMessageStore implements MessageStore {
         // 添加消息到commitLog
         /**
          *
+         * todo 重点
          * 最终的存储消息（commitLog）
+         *
+         * 同一个topic的文件写入一个文件，顺序写，满1g后才写新的文件
+         *
+         * messageQueue存储的是消息的在commitLog中的位置，并不是存储真正的消息。kafka存储的是真正的消息
+         *
+         *
          */
         PutMessageResult result = this.commitLog.putMessage(msg);
 

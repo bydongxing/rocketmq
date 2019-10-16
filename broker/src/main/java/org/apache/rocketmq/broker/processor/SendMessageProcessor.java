@@ -49,7 +49,7 @@ import java.util.Map;
 
 /**
  *
- * broker 接收到消息
+ * broker 接收到producer的生产消息
  *
  */
 public class SendMessageProcessor extends AbstractSendMessageProcessor implements NettyRequestProcessor {
@@ -60,6 +60,16 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         super(brokerController);
     }
 
+    /**
+     *
+     * 处理消息请求
+     *
+     *
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
     @Override
     public RemotingCommand processRequest(ChannelHandlerContext ctx,
                                           RemotingCommand request) throws RemotingCommandException {
@@ -84,6 +94,11 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                 RemotingCommand response;
 
                 // 处理发送消息逻辑
+                /**
+                 *
+                 * 判断消息是不是批量的消息
+                 *
+                 */
                 if (requestHeader.isBatch()) {
                     response = this.sendBatchMessage(ctx, request, mqtraceContext, requestHeader);
                 } else {
@@ -306,6 +321,17 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         return true;
     }
 
+    /**
+     *
+     * 发送消息
+     *
+     * @param ctx
+     * @param request
+     * @param sendMessageContext
+     * @param requestHeader
+     * @return
+     * @throws RemotingCommandException
+     */
     private RemotingCommand sendMessage(final ChannelHandlerContext ctx,
                                         final RemotingCommand request,
                                         final SendMessageContext sendMessageContext,
@@ -331,8 +357,9 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         }
 
         // 消息配置(Topic配置）校验
-
         response.setCode(-1);
+
+        // 检查broker、topic等权限信息
         super.msgCheck(ctx, requestHeader, response);
         if (response.getCode() != -1) {
             return response;
@@ -350,11 +377,12 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             queueIdInt = Math.abs(this.random.nextInt() % 99999999) % topicConfig.getWriteQueueNums();
         }
 
+        // 创建MessageExtBrokerInner
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
         msgInner.setTopic(requestHeader.getTopic());
         msgInner.setQueueId(queueIdInt);
 
-        // 对RETRY类型的消息处理。如果超过最大消费次数，则topic修改成"%DLQ%" + 分组名，即加入 死信队列(Dead Letter Queue)
+        // 对RETRY类型的消息处理。如果超过最大消费次数（默认为16次），则topic修改成"%DLQ%" + 分组名，即加入 死信队列(Dead Letter Queue)
         if (!handleRetryAndDLQ(requestHeader, response, request, msgInner, topicConfig)) {
             return response;
         }
@@ -367,9 +395,16 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         msgInner.setBornHost(ctx.channel().remoteAddress());
         msgInner.setStoreHost(this.getStoreHost());
         msgInner.setReconsumeTimes(requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes());
+
         PutMessageResult putMessageResult = null;
         Map<String, String> oriProps = MessageDecoder.string2messageProperties(requestHeader.getProperties());
         String traFlag = oriProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
+
+        /**
+         *
+         * 判断是不是事务消息
+         *
+         */
         if (traFlag != null && Boolean.parseBoolean(traFlag)) {
 
             // 校验是否不允许发送事务消息
@@ -380,12 +415,23 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                         + "] sending transaction message is forbidden");
                 return response;
             }
+
+            /**
+             *
+             * 存储事务消息封装
+             *
+             */
             putMessageResult = this.brokerController.getTransactionalMessageService().prepareMessage(msgInner);
         } else {
+            /**
+             *
+             * 存储消息封装，最终存储需要 CommitLog 实现
+             *
+             */
             putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
         }
 
-        // 添加消息
+        // 响应消息
         return handlePutMessageResult(putMessageResult, response, request, msgInner, responseHeader, sendMessageContext, ctx, queueIdInt);
 
     }
@@ -393,7 +439,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
     /**
      *
-     *  添加消息
+     *  响应结果
      *
      * @param putMessageResult
      * @param response
@@ -466,6 +512,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         }
 
         String owner = request.getExtFields().get(BrokerStatsManager.COMMERCIAL_OWNER);
+
+        // 发送成功
         if (sendOK) {
 
             // 统计
@@ -500,6 +548,17 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                 sendMessageContext.setCommercialSendSize(wroteSize);
                 sendMessageContext.setCommercialOwner(owner);
             }
+
+
+            /**
+             *
+             *
+             * 响应给 Producer 可能发生异常，
+             * #doResponse(ctx, request, response)捕捉了该异常并输出日志。
+             * 这样做的话，我们进行排查 Broker 接收消息成功后响应是否存在异常会方便很多
+             *
+             */
+
             return null;
         } else {
 

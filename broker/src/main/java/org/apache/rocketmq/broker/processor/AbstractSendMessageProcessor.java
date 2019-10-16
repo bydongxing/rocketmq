@@ -170,7 +170,7 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
 
     /**
      *
-     * 检查消息的检查
+     * 消息的检查
      *
      * @param ctx
      * @param requestHeader
@@ -182,6 +182,13 @@ public abstract class AbstractSendMessageProcessor implements NettyRequestProces
 
 
         // 检查 broker 是否有写入权限
+        /**
+         *
+         * 2 禁读
+         * 4 禁写
+         * 6 同时支持读写
+         *
+         */
         if (!PermName.isWriteable(this.brokerController.getBrokerConfig().getBrokerPermission())
             && this.brokerController.getTopicConfigManager().isOrderTopic(requestHeader.getTopic())) {
             response.setCode(ResponseCode.NO_PERMISSION);

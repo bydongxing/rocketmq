@@ -16,18 +16,15 @@
  */
 package org.apache.rocketmq.store;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class MappedFileQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -191,19 +188,43 @@ public class MappedFileQueue {
         return 0;
     }
 
+
+    /**
+     *
+     * 获取最后一个 MappedFile，若不存在或文件已满，则进行创建
+     *
+     *
+     * @param startOffset
+     * @param needCreate
+     * @return
+     */
     public MappedFile getLastMappedFile(final long startOffset, boolean needCreate) {
+        // 创建文件开始offset。-1时，不创建
         long createOffset = -1;
         MappedFile mappedFileLast = getLastMappedFile();
 
         if (mappedFileLast == null) {
+            // 一个映射文件都不存在
             createOffset = startOffset - (startOffset % this.mappedFileSize);
         }
 
         if (mappedFileLast != null && mappedFileLast.isFull()) {
+            // 最后一个文件已满
             createOffset = mappedFileLast.getFileFromOffset() + this.mappedFileSize;
         }
 
         if (createOffset != -1 && needCreate) {
+            // 创建文件
+
+            /**
+             *
+             * fileName[n] = fileName[n - 1] + n * mappedFileSize
+             * fileName[0] = startOffset - (startOffset % this.mappedFileSize)
+             * 以 this.mappedFileSize 为每个文件大小时，startOffset 所在文件的开始offset
+             *
+             *
+             */
+
             String nextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset);
             String nextNextFilePath = this.storePath + File.separator
                 + UtilAll.offset2FileName(createOffset + this.mappedFileSize);
@@ -220,6 +241,13 @@ public class MappedFileQueue {
                 }
             }
 
+
+            /**
+             *
+             * 设置 MappedFile是否是第一个创建的文件。
+             * 该标识用于 ConsumeQueue 对应的 MappedFile ，详见 ConsumeQueue#fillPreBlank
+             *
+             */
             if (mappedFile != null) {
                 if (this.mappedFiles.isEmpty()) {
                     mappedFile.setFirstCreateInQueue(true);
